@@ -37,7 +37,7 @@ end_time = time(15, 0, 0)
 # Define a helper function to parse timestamps
 def parse_timestamp(ts_str):
     #return datetime.strptime(ts_str, '%Y%m%d%H%M%S%f').timestamp()
-    return datetime.strptime(ts_str, '%Y%m%d%H%M%S%f')
+    return datetime.strptime(ts_str, '%Y-%m-%d %H:%M:%S.%f')
 
 @dataclass
 class Order:
@@ -255,8 +255,8 @@ def build_order_book_snapshot(order_csv, trade_csv, output_csv):
 
     orders_df['EventType'] = 'OrderEvent'
     trades_df['EventType'] = 'TradeEvent'
-    orders_df['Timestamp'] = pd.to_datetime(orders_df['TradingTime'], format='%Y%m%d%H%M%S%f')
-    trades_df['Timestamp'] = pd.to_datetime(trades_df['TradingTime'], format='%Y%m%d%H%M%S%f')
+    orders_df['Timestamp'] = pd.to_datetime(orders_df['TradingTime'])
+    trades_df['Timestamp'] = pd.to_datetime(trades_df['TradingTime'])
     combined_df = pd.concat([orders_df, trades_df])
     combined_df.sort_values(by=['Timestamp', 'EventType'], inplace=True)
 

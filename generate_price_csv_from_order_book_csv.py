@@ -10,6 +10,7 @@ df = df.rename(columns =
                              })
 
 df_price = df[['SecurityID','timestamp','bid1_price','ask1_price']]
+df_price = df_price.drop_duplicates(subset='timestamp', keep='last')
 df_price['midprice'] = 0.5 * (df['bid1_price'] + df['ask1_price'])
 df_price['spread'] =  (df['ask1_price'] - df['bid1_price'])
 df_price.to_csv(r'data/600519/20230320/price.csv', index=False)

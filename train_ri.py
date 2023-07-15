@@ -233,6 +233,7 @@ class BaseEnv():
 
         #self.orderbook = pd.concat([ask, bid], axis=1)
         self.orderbook = pd.read_csv(f"data/{code}/{day}/order_book.csv")
+        self.orderbook = self.orderbook.drop('SecurityID', axis=1)
         self.orderbook.timestamp = pd.to_datetime(self.orderbook.timestamp)
         #self.orderbook = self.orderbook[(f'{self.day} 09:30:00'<self.orderbook.timestamp)&(self.orderbook.timestamp<f'{self.day} 14:57:00')]
         self.orderbook = self.orderbook.set_index('timestamp')
@@ -632,7 +633,10 @@ class EnvFeature(BaseEnv):
         #svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s = getOrderStrengthIndex(data_10s)
         #svi_60s, sni_60s, lvi_60s, lni_60s, wvi_60s, wni_60s = getOrderStrengthIndex(data_60s)
         #svi_300s, sni_300s, lvi_300s, lni_300s, wvi_300s, wni_300s = getOrderStrengthIndex(data_300s)
-        return []
+        return [0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0,
+                ]
 
         #return [
         #    svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s,

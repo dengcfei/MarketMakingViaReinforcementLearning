@@ -1,6 +1,6 @@
-#import os
-#os.chdir('c:\work\china-data\MarketMakingViaReinforcementLearning')
-#os.listdir(".")
+import os
+os.chdir('c:\work\china-data\MarketMakingViaReinforcementLearning')
+os.listdir(".")
 #
 import pandas as pd
 
