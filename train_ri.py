@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import math
+from datetime import datetime, time
 
 def min_max_norm(data):
     minVals = data.min()
@@ -19,12 +20,12 @@ def z_norm(data):
 def lob_norm(data_, midprice):
     data = data_.copy()
     for i in range(10):
-        data[f'ask{i+1}_price'] = data[f'ask{i+1}_price']/(midprice+1e-7) - 1
-        data[f'bid{i+1}_price'] = data[f'bid{i+1}_price']/(midprice+1e-7) - 1
+        data[f'ask_price_{i+1}'] = data[f'ask_price_{i+1}']/(midprice+1e-7) - 1
+        data[f'bid_price_{i+1}'] = data[f'bid_price_{i+1}']/(midprice+1e-7) - 1
         # data[f'ask{i+1}_price'] = z_norm(data[f'ask{i+1}_price'])
         # data[f'bid{i+1}_price'] = z_norm(data[f'bid{i+1}_price'])
-        data[f'ask{i+1}_volume'] = data[f'ask{i+1}_volume']/data[f'ask{i+1}_volume'].max()
-        data[f'bid{i+1}_volume'] = data[f'bid{i+1}_volume']/data[f'bid{i+1}_volume'].max()
+        data[f'ask_quantity_{i+1}'] = data[f'ask_quantity_{i+1}']/data[f'ask_quantity_{i+1}'].max()
+        data[f'bid_quantity_{i+1}'] = data[f'bid_quantity_{i+1}']/data[f'bid_quantity_{i+1}'].max()
 
     return data
 
@@ -56,10 +57,11 @@ def load_data(code, datelist, horizon=10):
         datelist = [datelist]
     data_list = []
     for day in datelist:
-        ask = pd.read_csv(f"data/{code}/{day}/ask.csv")
-        bid = pd.read_csv(f"data/{code}/{day}/bid.csv").drop(['timestamp'], axis = 1)
-        price = pd.read_csv(f"data/{code}/{day}/price.csv").drop(['timestamp', 'ask1_price', 'bid1_price'], axis = 1)
-        data = pd.concat([ask, bid, price], axis=1)
+        #ask = pd.read_csv(f"data/{code}/{day}/ask.csv")
+        #bid = pd.read_csv(f"data/{code}/{day}/bid.csv").drop(['timestamp'], axis = 1)
+        #price = pd.read_csv(f"data/{code}/{day}/price.csv").drop(['timestamp', 'ask1_price', 'bid1_price'], axis = 1)
+        #data = pd.concat([ask, bid, price], axis=1)
+        price = pd.read_csv(f"data/{code}/{day}/price.csv")
         data['date'] = data['timestamp'].str.split(expand=True)[0]
         data['time'] = data['timestamp'].str.split(expand=True)[1]
         data.drop('timestamp', axis=1, inplace=True)
@@ -171,7 +173,6 @@ def getOrderStrengthIndex(data):
 import numpy as np
 import pandas as pd
 import random
-import time
 from tqdm import tqdm
 
 # from tensorforce import Environment
@@ -227,24 +228,29 @@ class BaseEnv():
     '''
 
     def load_orderbook(self, code, day):
-        ask = pd.read_csv(self.data_dir + f'/{code}/{day}/ask.csv')
-        bid = pd.read_csv(self.data_dir + f'/{code}/{day}/bid.csv').drop(['timestamp'], axis = 1)
+        #ask = pd.read_csv(self.data_dir + f'/{code}/{day}/ask.csv')
+        #bid = pd.read_csv(self.data_dir + f'/{code}/{day}/bid.csv').drop(['timestamp'], axis = 1)
 
-        self.orderbook = pd.concat([ask, bid], axis=1)
+        #self.orderbook = pd.concat([ask, bid], axis=1)
+        self.orderbook = pd.read_csv(f"data/{code}/{day}/order_book.csv")
         self.orderbook.timestamp = pd.to_datetime(self.orderbook.timestamp)
-        self.orderbook = self.orderbook[(f'{self.day} 09:30:00'<self.orderbook.timestamp)&(self.orderbook.timestamp<f'{self.day} 14:57:00')]
+        #self.orderbook = self.orderbook[(f'{self.day} 09:30:00'<self.orderbook.timestamp)&(self.orderbook.timestamp<f'{self.day} 14:57:00')]
         self.orderbook = self.orderbook.set_index('timestamp')
         self.orderbook_length = len(self.orderbook)
         print('load lob done!', code, day)
+        print('loaded order book', len(self.orderbook))
 
     def load_orderqueue(self, code, day):
         pass
 
     def load_price(self, code, day):
         self.price = pd.read_csv(self.data_dir + f'/{code}/{day}/price.csv')
+
         self.price.timestamp = pd.to_datetime(self.price.timestamp)
         self.price = self.price.set_index('timestamp')
-        self.price = self.price.loc[self.orderbook.index]
+        print("loaded price", len(self.price))
+        #self.price = self.price.loc[self.orderbook.index]
+        #print("loaded price", len(self.price))
 
     def load_msg(self, code, day):
         self.msg = pd.read_csv(self.data_dir + f'/{code}/{day}/msg.csv')
@@ -253,23 +259,35 @@ class BaseEnv():
         self.msg = self.msg.loc[self.orderbook.index]
 
     def load_order(self, code, day):
-        order_columns = pd.read_csv('raw/GTA_SZL2_ORDER.csv')
-        self.order = pd.read_csv(f'raw/SZL2_ORDER_{code}_{day[:6]}.csv', names=list(order_columns), low_memory=False)
+        #order_columns = pd.read_csv('raw/GTA_SZL2_ORDER.csv')
+        #self.order = pd.read_csv(f'raw/SZL2_ORDER_{code}_{day[:6]}.csv', names=list(order_columns), low_memory=False)
+        self.order = pd.read_csv(f"data/{code}/{day}/order.csv")
         self.order.TradingTime = pd.to_datetime(self.order.TradingTime)
-        self.order = self.order[self.order.TradingDate==int(day)]
+        #self.order = self.order[self.order.TradingDate==int(day)]
         self.order = self.order[(f'{self.day} 09:30:00'<self.order.TradingTime)&(self.order.TradingTime<f'{self.day} 14:57:00')]
+        print("loaded order", len(self.order))
 
     def load_trade(self, code, day):
-        trade_columns = pd.read_csv('raw/GTA_SZL2_TRADE.csv')
-        self.trade = pd.read_csv(f'raw/SZL2_TRADE_{code}_{day[:6]}.csv', names=list(trade_columns))
+        #trade_columns = pd.read_csv('raw/GTA_SZL2_TRADE.csv')
+        #self.trade = pd.read_csv(f'raw/SZL2_TRADE_{code}_{day[:6]}.csv', names=list(trade_columns))
+        self.trade = pd.read_csv(f"data/{code}/{day}/trade.csv")
         self.trade.TradingTime = pd.to_datetime(self.trade.TradingTime)
-        self.trade = self.trade[self.trade.TradingDate==int(day)]
-        self.trade = self.trade[self.trade.TradeType=="F"]
-        self.trade = self.trade[(f'{self.day} 09:30:00'<self.trade.TradingTime)&(self.trade.TradingTime<f'{self.day} 14:57:00')]
 
+        #self.trade = self.trade[self.trade.TradingDate==int(day)]
+        #self.trade = self.trade[self.trade.TradeType=="F"]
+        #print("loaded trades ", len(self.trade))
+        #print("all trading time ", set(self.trade.TradingTime))
+        self.trade = self.trade[self.trade['TradingTime'].dt.time.between(time(9, 30), time(14, 57))]
+        print("loaded trades ", len(self.trade))
+        #self.trade = self.trade[(f'{self.day} 09:30:00'<self.trade.TradingTime)&(self.trade.TradingTime<f'{self.day} 14:57:00')]
+
+        #print("order book index ", self.orderbook.index)
         self.is_trade = pd.DataFrame(index=self.orderbook.index,columns=['is_trade'])
+        #print("length of is_trade ", len(self.is_trade))
         self.is_trade['is_trade'] = 0
+        #print("all trading time ", set(self.trade.TradingTime))
         self.is_trade.loc[set(self.trade.TradingTime)] = 1
+        print(self.is_trade.value_counts())
 
     '''
         Common function
@@ -277,6 +295,7 @@ class BaseEnv():
 
     def reset_seq(self, timesteps_per_episode=None, episode_idx=None):
         self.episode_idx = episode_idx
+        print('timesteps_per_episode ', timesteps_per_episode)
         if timesteps_per_episode == None:
             self.episode_start = 0
             self.episode_end = len(self.orderbook)
@@ -288,7 +307,10 @@ class BaseEnv():
 
         self.episode_length = len(self.episode_state)
 
+        #print("self.episode_start, self.episode_end ", self.episode_start, self.episode_end)
         episode_is_trade = self.is_trade.iloc[self.episode_start:self.episode_end]
+        #print("self.is_trade ", self.is_trade)
+        #print("episode_is_trade ", episode_is_trade)
         has_trade_index = np.where(episode_is_trade==1)[0]
         has_trade_index = has_trade_index[has_trade_index>self.T]
         self.index_iterator = iter(has_trade_index)
@@ -603,19 +625,20 @@ class EnvFeature(BaseEnv):
         return [rv_300s, rv_600s, rv_1800s, rsi_300s, rsi_600s, rsi_1800s]
 
     def _get_order_strength_index(self,t):
-        data_10s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=10))]
-        data_60s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=60))]
-        data_300s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=300))]
+        #data_10s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=10))]
+        #data_60s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=60))]
+        #data_300s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=300))]
 
-        svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s = getOrderStrengthIndex(data_10s)
-        svi_60s, sni_60s, lvi_60s, lni_60s, wvi_60s, wni_60s = getOrderStrengthIndex(data_60s)
-        svi_300s, sni_300s, lvi_300s, lni_300s, wvi_300s, wni_300s = getOrderStrengthIndex(data_300s)
+        #svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s = getOrderStrengthIndex(data_10s)
+        #svi_60s, sni_60s, lvi_60s, lni_60s, wvi_60s, wni_60s = getOrderStrengthIndex(data_60s)
+        #svi_300s, sni_300s, lvi_300s, lni_300s, wvi_300s, wni_300s = getOrderStrengthIndex(data_300s)
+        return []
 
-        return [
-            svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s,
-            svi_60s, sni_60s, lvi_60s, lni_60s, wvi_60s, wni_60s,
-            svi_300s, sni_300s, lvi_300s, lni_300s, wvi_300s, wni_300s
-        ]
+        #return [
+        #    svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s,
+        #    svi_60s, sni_60s, lvi_60s, lni_60s, wvi_60s, wni_60s,
+        #    svi_300s, sni_300s, lvi_300s, lni_300s, wvi_300s, wni_300s
+        #]
 
 
 
@@ -624,7 +647,6 @@ import numpy as np
 import pandas as pd
 import random
 import math
-import time
 
 
 class EnvContinuous(EnvFeature):
@@ -632,7 +654,7 @@ class EnvContinuous(EnvFeature):
     """
     def __init__(
             self,
-            code='000001',
+            code='600519',
             day='20191101',
             latency=1,
             T=50,
@@ -672,7 +694,7 @@ class EnvContinuous(EnvFeature):
         self.load_orderbook(code=code, day=day)
         self.load_price(code=code, day=day)
         self.load_trade(code=code, day=day)
-        self.load_msg(code=code, day=day)
+        #self.load_msg(code=code, day=day)
 
     def init_states(self):
         self.__states_space__ = dict()
@@ -784,7 +806,8 @@ class EnvContinuous(EnvFeature):
 
         if not self.wo_lob_state:
             lob = self.episode_state.iloc[t-self.T:t]
-            mid_price = (lob.ask1_price + lob.bid1_price)/2
+            #print("lob ", lob)
+            mid_price = (lob.ask_price_1 + lob.bid_price_1)/2
             lob_normed = lob_norm(lob, mid_price)
             self.__state__['lob_state'] = np.expand_dims(np.array(lob_normed), -1)
 
@@ -803,7 +826,6 @@ import numpy as np
 import pandas as pd
 import random
 import math
-import time
 from datetime import timedelta
 
 
@@ -854,7 +876,7 @@ class EnvDiscrete(EnvFeature):
         self.load_orderbook(code=code, day=day)
         self.load_price(code=code, day=day)
         self.load_trade(code=code, day=day)
-        self.load_msg(code=code, day=day)
+        #self.load_msg(code=code, day=day)
 
     def init_states(self):
         self.__states_space__ = dict()
@@ -968,7 +990,7 @@ class EnvDiscrete(EnvFeature):
 
         if not self.wo_lob_state:
             lob = self.episode_state.iloc[t-self.T:t]
-            mid_price = (lob.ask1_price + lob.bid1_price)/2
+            mid_price = (lob.ask_price_1 + lob.bid_price_1)/2
             lob_normed = lob_norm(lob, mid_price)
             self.__state__['lob_state'] = np.expand_dims(np.array(lob_normed), -1)
 
@@ -1217,7 +1239,7 @@ from tensorforce.environments import Environment
 @dataclass
 class TrainConfig:
     # Experiment
-    code: str = '000001'
+    code: str = '600519'
     device: str = "cpu"
     latency: int = 1
     time_window: int = 50
@@ -1233,7 +1255,7 @@ class TrainConfig:
     save: bool = False,
     agent_save_dir: str = ''
     # Ablation
-    wo_pretrain: bool = False
+    wo_pretrain: bool = True
     wo_attnlob: bool = False
     wo_lob_state: bool = False
     wo_market_state: bool = False

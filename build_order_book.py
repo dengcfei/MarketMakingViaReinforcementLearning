@@ -3,8 +3,6 @@ from datetime import datetime, time
 
 import pandas as pd
 
-os.chdir(r'c:\work\china-data\MarketMakingViaReinforcementLearning\data\600519\20230320')
-os.listdir(".")
 
 
 import csv
@@ -235,7 +233,7 @@ def process_trade_event(row, order_book):
     timestamp = parse_timestamp(str(row['TradingTime']))
     if start_time <= timestamp.time() <= end_time:
         price = Decimal(row['TradePrice'])
-        quantity = Decimal(row['TradeAmount'])
+        quantity = Decimal(row['TradeVolume'])
         bid_no = row['OrderNo']
         offer_no = row['OfferNo']
         trade_no = row['TradeNo']
@@ -286,4 +284,4 @@ def build_order_book_snapshot(order_csv, trade_csv, output_csv):
             writer.writerow(row)
 
 
-build_order_book_snapshot('order.csv', 'trade.csv', 'price.csv')
+build_order_book_snapshot('data/600519/20230320/order.csv', 'data/600519/20230320/trade.csv', 'data/600519/20230320/order_book.csv')
