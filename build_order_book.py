@@ -69,7 +69,7 @@ class OrderBook:
 
     # Add a new order to the order book
     def add_order(self, order: Order):
-        #if order.id == '1088498':
+        #if order.id == '110096':
         #    print("found")
         if order.side == 'B':
             self.bids[order.price] += order.quantity
@@ -113,7 +113,7 @@ class OrderBook:
 
     # Execute a trade in the order book
     def execute_trade(self, trade: Trade):
-        #if trade.ask_id == '299968' or trade.bid_id == '299968':
+        #if trade.ask_id == '110096' or trade.bid_id == '110096':
         #    print("found")
         #buy order could be mkt order and not in order book, but sell side must be present
         if trade.sb_mark == 'B':
@@ -184,6 +184,7 @@ class OrderBook:
                     if self.bids[order.price] <= 0:
                         del self.bids[order.price]
             if trade.ask_id in self.ask_orders.keys():
+                order = self.ask_orders[trade.ask_id]
                 if order.price <= trade.price:
                     self.asks[order.price] -= trade.quantity
                     self.ask_orders[trade.ask_id].quantity -= trade.quantity

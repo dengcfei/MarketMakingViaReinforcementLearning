@@ -186,11 +186,11 @@ os.listdir(".")
 
 import matplotlib.pyplot as plt
 import pandas as pd
-df = pd.read_csv('output.csv')
+df = pd.read_csv('order_book.csv')
 df['timestamp'] = pd.to_datetime(df['timestamp'])
 filtered_df = df[df['timestamp'].dt.time.between(time(9, 30), time(14, 57))]
-filtered_df.plot(x='timestamp', y=['bid_price_1'])
-filtered_df.plot(x='timestamp', y=['ask_price_1'])
+filtered_df.plot(x='timestamp', y=['bid_price_1', 'ask_price_1'])
+#filtered_df.plot(x='timestamp', y=['ask_price_1'])
 plt.show()
 
 df = pd.read_csv(r'c:\work\china-data\MarketMakingViaReinforcementLearning\order_book.remote.csv')
