@@ -293,5 +293,9 @@ def build_order_book_snapshot(order_csv, trade_csv, output_csv):
             writer.writerow(row)
 
 
+date_str='20230320'
+build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv')
+date_str='20230321'
+build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv')
 date_str='20230322'
 build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv')
