@@ -69,7 +69,7 @@ class OrderBook:
 
     # Add a new order to the order book
     def add_order(self, order: Order):
-        #if order.id == '110096':
+        #if order.id == '9708393':
         #    print("found")
         if order.side == 'B':
             self.bids[order.price] += order.quantity
@@ -86,7 +86,7 @@ class OrderBook:
 
     # Cancel an order in the order book
     def cancel_order(self, order: Order):
-        #if order.id == '1088498':
+        #if order.id == '9708393':
         #    print("found")
         if order.side == 'B':
             if order.id in self.bid_orders.keys():
@@ -113,7 +113,7 @@ class OrderBook:
 
     # Execute a trade in the order book
     def execute_trade(self, trade: Trade):
-        #if trade.ask_id == '110096' or trade.bid_id == '110096':
+        #if trade.ask_id == '9708393' or trade.bid_id == '9708393':
         #    print("found")
         #buy order could be mkt order and not in order book, but sell side must be present
         if trade.sb_mark == 'B':
@@ -129,6 +129,10 @@ class OrderBook:
                     # del self.ask_counts[trade.price]
             else:
                 print("unknown ask order id for trade ", trade.ask_id, trade)
+                # even though cannot find order, still update quantity
+                self.asks[trade.price] -= trade.quantity
+                if self.asks[trade.price] <= 0:
+                    del self.asks[trade.price]
 
             if trade.bid_id in self.bid_orders.keys():
                 if self.bid_orders[trade.bid_id].trading_time == trade.trading_time:
@@ -156,6 +160,10 @@ class OrderBook:
                     #del self.bid_counts[trade.price]
             else:
                 print("unknown bid order id for trade ", trade.bid_id, trade)
+                #even though cannot find order, still update quantity
+                self.bids[trade.price] -= trade.quantity
+                if self.bids[trade.price] <= 0:
+                    del self.bids[trade.price]
 
 
             if trade.ask_id in self.ask_orders.keys():
