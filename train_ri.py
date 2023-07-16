@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import math
 from datetime import datetime, time
+import time as time_module
 
 def min_max_norm(data):
     minVals = data.min()
@@ -443,7 +444,7 @@ class BaseEnv():
 
         # log for result
         if terminal:
-            self.post_experiment()
+            self.post_experiment(True)
 
         state = self.get_state_at_t(self.i-self.latency)
 
@@ -593,7 +594,7 @@ class BaseEnv():
                     print(item.name, 'SELL at', item.trade_price, 'inventory', item.inventory, 'value', item.value)
 
         if save:
-            now_time = time.strftime('%Y_%m_%d_%H_%M_%S', time.localtime())
+            now_time = time_module.strftime('%Y_%m_%d_%H_%M_%S', time_module.localtime())
             log_file = f"./log/{self.exp_name}_{self.code}_{self.day}_{now_time}.csv"
             self.logger.to_csv(log_file)
             print("Trading log saved to", log_file)
@@ -1259,7 +1260,7 @@ class TrainConfig:
     device: str = "cpu"
     latency: int = 1
     time_window: int = 50
-    log: bool = True
+    log: int = 3
     exp_name: str = ''
     # Agent
     agent_type: str = 'ppo' # ppo/dueling dqn
@@ -1267,9 +1268,9 @@ class TrainConfig:
     horizon: int = 1
     env_type: str = 'continuous' # continuous/discrete
     load: bool = False
-    agent_load_dir: str = ''
-    save: bool = False,
-    agent_save_dir: str = ''
+    agent_load_dir: str = 'agent'
+    save: bool = True,
+    agent_save_dir: str = 'agent'
     # Ablation
     wo_pretrain: bool = True
     wo_attnlob: bool = False
@@ -1453,8 +1454,9 @@ def main(config: TrainConfig):
     test(agent, test_result, config)
     daily_test_results = gather_test_results(test_result)
 
-
-train_days=['20230320', '20230321']
+keras_model_dir='model'
+#train_days=['20230320', '20230321']
+train_days=['20230320']
 test_days=['20230322']
 num_step_per_episode = 2000
 n_train_loop = 1
