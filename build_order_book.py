@@ -285,4 +285,5 @@ def build_order_book_snapshot(order_csv, trade_csv, output_csv):
             writer.writerow(row)
 
 
-build_order_book_snapshot('data/600519/20230320/order.csv', 'data/600519/20230320/trade.csv', 'data/600519/20230320/order_book.csv')
+date_str='20230322'
+build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv')

@@ -247,6 +247,7 @@ class BaseEnv():
     def load_price(self, code, day):
         self.price = pd.read_csv(self.data_dir + f'/{code}/{day}/price.csv')
 
+
         self.price.timestamp = pd.to_datetime(self.price.timestamp)
         self.price = self.price.set_index('timestamp')
         print("loaded price", len(self.price))
@@ -263,6 +264,7 @@ class BaseEnv():
         #order_columns = pd.read_csv('raw/GTA_SZL2_ORDER.csv')
         #self.order = pd.read_csv(f'raw/SZL2_ORDER_{code}_{day[:6]}.csv', names=list(order_columns), low_memory=False)
         self.order = pd.read_csv(f"data/{code}/{day}/order.csv")
+
         self.order.TradingTime = pd.to_datetime(self.order.TradingTime)
         #self.order = self.order[self.order.TradingDate==int(day)]
         self.order = self.order[(f'{self.day} 09:30:00'<self.order.TradingTime)&(self.order.TradingTime<f'{self.day} 14:57:00')]
@@ -272,6 +274,7 @@ class BaseEnv():
         #trade_columns = pd.read_csv('raw/GTA_SZL2_TRADE.csv')
         #self.trade = pd.read_csv(f'raw/SZL2_TRADE_{code}_{day[:6]}.csv', names=list(trade_columns))
         self.trade = pd.read_csv(f"data/{code}/{day}/trade.csv")
+
         self.trade.TradingTime = pd.to_datetime(self.trade.TradingTime)
 
         #self.trade = self.trade[self.trade.TradingDate==int(day)]
@@ -284,10 +287,10 @@ class BaseEnv():
 
         #print("order book index ", self.orderbook.index)
         self.is_trade = pd.DataFrame(index=self.orderbook.index,columns=['is_trade'])
-        #print("length of is_trade ", len(self.is_trade))
         self.is_trade['is_trade'] = 0
         #print("all trading time ", set(self.trade.TradingTime))
         self.is_trade.loc[set(self.trade.TradingTime)] = 1
+        print("length of is_trade ", len(self.is_trade))
         print(self.is_trade.value_counts())
 
     '''
@@ -308,12 +311,15 @@ class BaseEnv():
 
         self.episode_length = len(self.episode_state)
 
-        #print("self.episode_start, self.episode_end ", self.episode_start, self.episode_end)
+        print("self.episode_start, self.episode_end ", self.episode_start, self.episode_end)
         episode_is_trade = self.is_trade.iloc[self.episode_start:self.episode_end]
         #print("self.is_trade ", self.is_trade)
         #print("episode_is_trade ", episode_is_trade)
         has_trade_index = np.where(episode_is_trade==1)[0]
+        #ignore first T=50
         has_trade_index = has_trade_index[has_trade_index>self.T]
+        print("has_trade_index ", len(has_trade_index))
+        #print("has_trade_index ", has_trade_index)
         self.index_iterator = iter(has_trade_index)
 
         self.cash = self.value_ = self.value = self.initial_value
@@ -330,6 +336,7 @@ class BaseEnv():
 
         # log for trade
         self.logger = self.price.iloc[self.episode_start:self.episode_end].copy()
+        print("self.logger length, ", len(self.logger))
         columns=['ask_price', 'bid_price', 'trade_price', 'trade_volume', 'value', 'volume', 'cash', 'inventory']
         for column in columns:
             self.logger[column] = np.nan
@@ -354,6 +361,7 @@ class BaseEnv():
 
         episode_is_trade = self.is_trade.iloc[self.episode_start:self.episode_end]
         has_trade_index = np.where(episode_is_trade==1)[0]
+        print("has_trade_index ", len(has_trade_index))
         has_trade_index = has_trade_index[has_trade_index>self.T]
         self.index_iterator = iter(has_trade_index)
 
@@ -405,7 +413,10 @@ class BaseEnv():
         self.update_agent(trade_price, trade_volume)
 
         # log for trade result
-        self.logger.iloc[self.i, -8:] = [orders['ask_price'], orders['bid_price'], trade_price, trade_volume, self.value, self.volume, self.cash, self.inventory]
+        if self.i >= len(self.logger):
+           print("index overflow, ", self.i, len(self.logger))
+        else:
+           self.logger.iloc[self.i, -8:] = [orders['ask_price'], orders['bid_price'], trade_price, trade_volume, self.value, self.volume, self.cash, self.inventory]
 
         # if trade_volume:
         #     print(self.i, 'ask1:', self.ask1_price, 'bid1:', self.bid1_price, 'buy' if trade_volume>0 else 'sell', 'at', trade_price)
@@ -469,7 +480,7 @@ class BaseEnv():
                 # we assume that our quotes rest at the back of the queue
                 elif now_trading_price_max == ask_price:
                     # deal probability: traded volume/all volume in this level
-                    lob_depth = self.episode_state.iloc[self.i].ask1_volume
+                    lob_depth = self.episode_state.iloc[self.i].ask_quantity_1
                     transac_prob = now_trading_price_max_v/(now_trading_price_max_v+lob_depth)
                     is_transac = np.random.choice([1, 0], p=[transac_prob, 1-transac_prob])
                     if is_transac:
@@ -488,7 +499,7 @@ class BaseEnv():
 
                 # we assume that our quotes rest at the back of the queue
                 elif now_trading_price_min == bid_price:
-                    lob_depth = self.episode_state.iloc[self.i].bid1_volume
+                    lob_depth = self.episode_state.iloc[self.i].bid_quantity_1
                     transac_prob = now_trading_price_min_v/(now_trading_price_min_v+lob_depth)
                     is_transac = np.random.choice([1, 0], p=[transac_prob, 1-transac_prob])
                     if is_transac:
@@ -528,7 +539,8 @@ class BaseEnv():
         self.volume += volume
 
     def get_price_info(self, i):
-        price = self.price[self.price.index==self.episode_state.index[i]]
+        price = self.price[self.price.index==self.episode_state.index[i]].iloc[-1]
+        #print(price)
 
         bid1_price = price.bid1_price.item()
         ask1_price = price.ask1_price.item()
@@ -1247,7 +1259,7 @@ class TrainConfig:
     device: str = "cpu"
     latency: int = 1
     time_window: int = 50
-    log: bool = False
+    log: bool = True
     exp_name: str = ''
     # Agent
     agent_type: str = 'ppo' # ppo/dueling dqn
@@ -1445,7 +1457,7 @@ def main(config: TrainConfig):
 train_days=['20230320', '20230321']
 test_days=['20230322']
 num_step_per_episode = 2000
-n_train_loop = 5
+n_train_loop = 1
 
 config = TrainConfig()
 main(config)
