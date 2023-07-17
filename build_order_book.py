@@ -8,7 +8,7 @@ import pandas as pd
 import csv
 from decimal import Decimal
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, astuple
 
 # Define constants for column indices
 SECURITY_ID = 0
@@ -57,6 +57,21 @@ class Trade:
     sb_mark: str = 'C'
     trading_time: datetime = datetime(1900, 1, 1, 0, 0, 0)
 
+@dataclass
+class Statistics:
+    limit_buy_n: int = 0
+    limit_buy_volume: int = 0
+    market_buy_n: int = 0
+    market_buy_volume: int = 0
+    withdraw_buy_n: int = 0
+    withdraw_buy_volume: int = 0
+    limit_sell_n: int = 0
+    limit_sell_volume: int = 0
+    market_sell_n: int = 0
+    market_sell_volume: int = 0
+    withdraw_sell_n: int = 0
+    withdraw_sell_volume: int = 0
+
 # Define a data structure to represent the order book
 class OrderBook:
     def __init__(self):
@@ -66,12 +81,17 @@ class OrderBook:
         #self.ask_counts = defaultdict(int)  # Maps price levels to number of asks
         self.bid_orders = defaultdict(dict)  # Maps price levels to total bid quantity
         self.ask_orders = defaultdict(dict)  # Maps price levels to total ask quantity
+        self.statistics = defaultdict(dict)  # Maps price levels to total ask quantity
 
     # Add a new order to the order book
     def add_order(self, order: Order):
         #if order.id == '9708393':
         #    print("found")
+
+
+
         if order.side == 'B':
+
             self.bids[order.price] += order.quantity
             #self.bid_counts[order.price] += 1
             self.bid_orders[order.id] = order
@@ -86,10 +106,19 @@ class OrderBook:
 
     # Cancel an order in the order book
     def cancel_order(self, order: Order):
+        if order.trading_time in self.statistics.keys():
+            stat = self.statistics[order.trading_time]
+        else:
+            stat = Statistics()
+            self.statistics[order.trading_time] = stat
+
         #if order.id == '9708393':
         #    print("found")
         if order.side == 'B':
             if order.id in self.bid_orders.keys():
+                stat.withdraw_buy_n += 1
+                stat.withdraw_buy_volume += order.quantity
+
                 self.bids[order.price] -= order.quantity
                 del self.bid_orders[order.id]
                 #print("cancel bid order ", order)
@@ -100,6 +129,9 @@ class OrderBook:
                 print("cancel_order: unknown order ", order)
         elif order.side == 'S':
             if order.id in self.ask_orders.keys():
+                stat.withdraw_sell_n += 1
+                stat.withdraw_sell_volume += order.quantity
+
                 del self.ask_orders[order.id]
                 #print("cancel ask order ", order)
                 self.asks[order.price] -= order.quantity
@@ -116,8 +148,17 @@ class OrderBook:
         #if trade.ask_id == '9708393' or trade.bid_id == '9708393':
         #    print("found")
         #buy order could be mkt order and not in order book, but sell side must be present
+        if trade.trading_time in self.statistics.keys():
+            stat = self.statistics[trade.trading_time]
+        else:
+            stat = Statistics()
+            self.statistics[trade.trading_time] = stat
+
         if trade.sb_mark == 'B':
             if trade.ask_id in self.ask_orders.keys():
+                stat.limit_sell_n += 1
+                stat.limit_sell_volume += trade.quantity
+
                 self.asks[trade.price] -= trade.quantity
                 self.ask_orders[trade.ask_id].quantity -= trade.quantity
                 if self.ask_orders[trade.ask_id].quantity <= 0:
@@ -136,8 +177,12 @@ class OrderBook:
 
             if trade.bid_id in self.bid_orders.keys():
                 if self.bid_orders[trade.bid_id].trading_time == trade.trading_time:
-                    pass
+                    stat.market_buy_n += 1
+                    stat.market_buy_volume += trade.quantity
                 else:
+                    stat.limit_buy_n += 1
+                    stat.limit_buy_volume += trade.quantity
+
                     self.bids[trade.price] -= trade.quantity
                     self.bid_orders[trade.bid_id].quantity -= trade.quantity
                     if self.bid_orders[trade.bid_id].quantity <= 0:
@@ -150,6 +195,9 @@ class OrderBook:
                 pass #print("mkt bid order id for trade ", trade.bid_id, trade)
         elif trade.sb_mark == 'S':
             if trade.bid_id in self.bid_orders.keys():
+                stat.limit_buy_n += 1
+                stat.limit_buy_volume += trade.quantity
+
                 self.bids[trade.price] -= trade.quantity
                 self.bid_orders[trade.bid_id].quantity -= trade.quantity
                 if self.bid_orders[trade.bid_id].quantity <= 0:
@@ -168,8 +216,12 @@ class OrderBook:
 
             if trade.ask_id in self.ask_orders.keys():
                 if self.ask_orders[trade.ask_id].trading_time == trade.trading_time:
-                    pass
+                    stat.market_sell_n += 1
+                    stat.market_sell_volume += trade.quantity
                 else:
+                    stat.limit_sell_n += 1
+                    stat.limit_sell_volume += trade.quantity
+
                     self.asks[trade.price] -= trade.quantity
                     self.ask_orders[trade.ask_id].quantity -= trade.quantity
                     if self.ask_orders[trade.ask_id].quantity <= 0:
@@ -256,7 +308,7 @@ def process_trade_event(row, order_book):
 
 
 # Define a function to merge events from the two files and output the order book snapshot at each event
-def build_order_book_snapshot(order_csv, trade_csv, output_csv):
+def build_order_book_snapshot(order_csv, trade_csv, output_csv, msg_csv):
     order_book = OrderBook()
 
     orders_df = pd.read_csv(order_csv, delimiter=',', dtype=str)
@@ -291,11 +343,18 @@ def build_order_book_snapshot(order_csv, trade_csv, output_csv):
                   [float(bid_quantities[i]) if i < len(bid_quantities) else None for i in range(10)] + \
                   [float(ask_quantities[i]) if i < len(ask_quantities) else None for i in range(10)]
             writer.writerow(row)
+    with open(msg_csv, 'w', newline='') as f:
+        writer = csv.writer(f)
+        first_stat = list(order_book.statistics.values())[0]
+        writer.writerow(['timestamp'] + list(first_stat.__dataclass_fields__.keys()))
+        for key, value in order_book.statistics.items():
+            row = [key.strftime("%Y-%m-%d %H:%M:%S.%f")] + list(astuple(value))
+            writer.writerow(row)
 
 
 date_str='20230320'
-build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv')
+build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
 date_str='20230321'
-build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv')
+build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
 date_str='20230322'
-build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv')
+build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')

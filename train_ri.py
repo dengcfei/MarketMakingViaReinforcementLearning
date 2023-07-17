@@ -323,6 +323,7 @@ class BaseEnv():
         #print("has_trade_index ", has_trade_index)
         self.index_iterator = iter(has_trade_index)
 
+
         self.cash = self.value_ = self.value = self.initial_value
         self.holding_pnl_total = self.trading_pnl_total = 0
         self.inventory = 0

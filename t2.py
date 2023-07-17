@@ -178,12 +178,9 @@ build_order_book_snapshot('order.csv', 'trade.csv', 'output.csv')
 
 import os
 from datetime import datetime, time
-
 import pandas as pd
-
 os.chdir(r'c:\work\china-data\MarketMakingViaReinforcementLearning\data\600519\20230320')
 os.listdir(".")
-
 import matplotlib.pyplot as plt
 import pandas as pd
 df = pd.read_csv('order_book.csv')
@@ -213,3 +210,25 @@ plt.show()
 filtered_df['bid_price_1'].describe()
 
 order_book_df['bid_price_1']
+is_trade = np.array([0,1,1,1,0,
+                     1,0,1,0,0,
+                     0,1])
+
+
+import numpy as np
+import pandas as pd
+a = np.array([1, 2, 3, 4, 5])
+b = np.array([4, 3, 2, 1, 0])
+np.where(a >2)[0]
+
+is_trade=pd.DataFrame(index=range(0, 12), columns=['is_trade'])
+is_trade['is_trade'] = 0
+is_trade.loc[set([1,2,3,5,7,11])] = 1
+
+episode_start = 10
+episode_end = 12
+episode_is_trade = is_trade.iloc[episode_start:episode_end]
+has_trade_index = np.where(episode_is_trade==1)[0]
+has_trade_index
+
+np.where(episode_is_trade==1)
