@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 
-date_str = '20230320'
+date_str = '20230322'
 df_order = pd.read_csv(f'data/600519/{date_str}/order.csv')
 df_trade = pd.read_csv(f'data/600519/{date_str}/trade.csv')
 df_order_book = pd.read_csv(f'data/600519/{date_str}/order_book.csv')
