@@ -62,7 +62,7 @@ def load_data(code, datelist, horizon=10):
         #bid = pd.read_csv(f"data/{code}/{day}/bid.csv").drop(['timestamp'], axis = 1)
         #price = pd.read_csv(f"data/{code}/{day}/price.csv").drop(['timestamp', 'ask1_price', 'bid1_price'], axis = 1)
         #data = pd.concat([ask, bid, price], axis=1)
-        price = pd.read_csv(f"data/{code}/{day}/price.csv")
+        price = pd.read_csv(f"data/{code}/{day}/{price_file}")
         data['date'] = data['timestamp'].str.split(expand=True)[0]
         data['time'] = data['timestamp'].str.split(expand=True)[1]
         data.drop('timestamp', axis=1, inplace=True)
@@ -233,48 +233,50 @@ class BaseEnv():
         #bid = pd.read_csv(self.data_dir + f'/{code}/{day}/bid.csv').drop(['timestamp'], axis = 1)
 
         #self.orderbook = pd.concat([ask, bid], axis=1)
-        self.orderbook = pd.read_csv(f"data/{code}/{day}/order_book.csv")
+        self.orderbook = pd.read_csv(f"data/{code}/{day}/{order_book_file}")
         self.orderbook = self.orderbook.drop('SecurityID', axis=1)
         self.orderbook.timestamp = pd.to_datetime(self.orderbook.timestamp)
         #self.orderbook = self.orderbook[(f'{self.day} 09:30:00'<self.orderbook.timestamp)&(self.orderbook.timestamp<f'{self.day} 14:57:00')]
         self.orderbook = self.orderbook.set_index('timestamp')
         self.orderbook_length = len(self.orderbook)
-        print('load lob done!', code, day)
-        print('loaded order book', len(self.orderbook))
+        #print('load lob done!', code, day)
+        #print('loaded order book', len(self.orderbook))
 
     def load_orderqueue(self, code, day):
         pass
 
     def load_price(self, code, day):
-        self.price = pd.read_csv(self.data_dir + f'/{code}/{day}/price.csv')
+        self.price = pd.read_csv(self.data_dir + f'/{code}/{day}/{price_file}')
+        #print(self.price.head())
 
 
         self.price.timestamp = pd.to_datetime(self.price.timestamp)
         self.price = self.price.set_index('timestamp')
-        print("loaded price", len(self.price))
+        #print("loaded price", len(self.price))
         #self.price = self.price.loc[self.orderbook.index]
         #print("loaded price", len(self.price))
 
     def load_msg(self, code, day):
-        self.msg = pd.read_csv(self.data_dir + f'/{code}/{day}/msg.csv')
+        self.msg = pd.read_csv(self.data_dir + f'/{code}/{day}/{msg_file}')
+        #print('loaded msg', len(self.msg))
         self.msg.timestamp = pd.to_datetime(self.msg.timestamp)
         self.msg = self.msg.set_index('timestamp')
-        self.msg = self.msg.loc[self.orderbook.index]
+        #self.msg = self.msg.loc[self.orderbook.index]
 
     def load_order(self, code, day):
         #order_columns = pd.read_csv('raw/GTA_SZL2_ORDER.csv')
         #self.order = pd.read_csv(f'raw/SZL2_ORDER_{code}_{day[:6]}.csv', names=list(order_columns), low_memory=False)
-        self.order = pd.read_csv(f"data/{code}/{day}/order.csv")
+        self.order = pd.read_csv(f"data/{code}/{day}/{order_file}")
 
         self.order.TradingTime = pd.to_datetime(self.order.TradingTime)
         #self.order = self.order[self.order.TradingDate==int(day)]
         self.order = self.order[(f'{self.day} 09:30:00'<self.order.TradingTime)&(self.order.TradingTime<f'{self.day} 14:57:00')]
-        print("loaded order", len(self.order))
+        #print("loaded order", len(self.order))
 
     def load_trade(self, code, day):
         #trade_columns = pd.read_csv('raw/GTA_SZL2_TRADE.csv')
         #self.trade = pd.read_csv(f'raw/SZL2_TRADE_{code}_{day[:6]}.csv', names=list(trade_columns))
-        self.trade = pd.read_csv(f"data/{code}/{day}/trade.csv")
+        self.trade = pd.read_csv(f"data/{code}/{day}/{trade_file}")
 
         self.trade.TradingTime = pd.to_datetime(self.trade.TradingTime)
 
@@ -283,7 +285,7 @@ class BaseEnv():
         #print("loaded trades ", len(self.trade))
         #print("all trading time ", set(self.trade.TradingTime))
         self.trade = self.trade[self.trade['TradingTime'].dt.time.between(time(9, 30), time(14, 57))]
-        print("loaded trades ", len(self.trade))
+        #print("loaded trades ", len(self.trade))
         #self.trade = self.trade[(f'{self.day} 09:30:00'<self.trade.TradingTime)&(self.trade.TradingTime<f'{self.day} 14:57:00')]
 
         #print("order book index ", self.orderbook.index)
@@ -291,8 +293,8 @@ class BaseEnv():
         self.is_trade['is_trade'] = 0
         #print("all trading time ", set(self.trade.TradingTime))
         self.is_trade.loc[set(self.trade.TradingTime)] = 1
-        print("length of is_trade ", len(self.is_trade))
-        print(self.is_trade.value_counts())
+        #print("length of is_trade ", len(self.is_trade))
+        #print(self.is_trade.value_counts())
 
     '''
         Common function
@@ -300,7 +302,7 @@ class BaseEnv():
 
     def reset_seq(self, timesteps_per_episode=None, episode_idx=None):
         self.episode_idx = episode_idx
-        print('timesteps_per_episode ', timesteps_per_episode)
+        #print('timesteps_per_episode ', timesteps_per_episode)
         if timesteps_per_episode == None:
             self.episode_start = 0
             self.episode_end = len(self.orderbook)
@@ -312,14 +314,14 @@ class BaseEnv():
 
         self.episode_length = len(self.episode_state)
 
-        print("self.episode_start, self.episode_end ", self.episode_start, self.episode_end)
+        #print("self.episode_start, self.episode_end ", self.episode_start, self.episode_end)
         episode_is_trade = self.is_trade.iloc[self.episode_start:self.episode_end]
         #print("self.is_trade ", self.is_trade)
         #print("episode_is_trade ", episode_is_trade)
         has_trade_index = np.where(episode_is_trade==1)[0]
         #ignore first T=50
         has_trade_index = has_trade_index[has_trade_index>self.T]
-        print("has_trade_index ", len(has_trade_index))
+        #print("has_trade_index ", len(has_trade_index))
         #print("has_trade_index ", has_trade_index)
         self.index_iterator = iter(has_trade_index)
 
@@ -338,7 +340,7 @@ class BaseEnv():
 
         # log for trade
         self.logger = self.price.iloc[self.episode_start:self.episode_end].copy()
-        print("self.logger length, ", len(self.logger))
+        #print("self.logger length, ", len(self.logger))
         columns=['ask_price', 'bid_price', 'trade_price', 'trade_volume', 'value', 'volume', 'cash', 'inventory']
         for column in columns:
             self.logger[column] = np.nan
@@ -363,7 +365,7 @@ class BaseEnv():
 
         episode_is_trade = self.is_trade.iloc[self.episode_start:self.episode_end]
         has_trade_index = np.where(episode_is_trade==1)[0]
-        print("has_trade_index ", len(has_trade_index))
+        #print("has_trade_index ", len(has_trade_index))
         has_trade_index = has_trade_index[has_trade_index>self.T]
         self.index_iterator = iter(has_trade_index)
 
@@ -445,7 +447,7 @@ class BaseEnv():
 
         # log for result
         if terminal:
-            self.post_experiment(True)
+            self.post_experiment(False)
 
         state = self.get_state_at_t(self.i-self.latency)
 
@@ -462,22 +464,29 @@ class BaseEnv():
         now_trading_price_max_v = now_t[now_t.TradePrice==now_trading_price_max].TradeVolume.sum()
         now_trading_price_min = now_t.TradePrice.min()
         now_trading_price_min_v = now_t[now_t.TradePrice==now_trading_price_min].TradeVolume.sum()
+        #print("now_trading_price_min, now_trading_price_max", now_trading_price_min, now_trading_price_max, now_trading_price_min_v, now_trading_price_max_v)
 
         # t - 1
         t_1_mid_price, t_1_a1_price, t_1_b1_price, t_1_spread = self.get_price_info(self.i-1)
+        #print("mid, bid, ask, spread " , t_1_mid_price, t_1_b1_price, t_1_a1_price, t_1_spread)
 
         # sell order
         if ask_price and ask_volume:
             if ask_price <= t_1_b1_price:
                 # market order
                 trade_price, trade_volume = t_1_b1_price, ask_volume
-                # print("market order sell at", trade_price)
+                pnl = trade_volume * (t_1_mid_price - trade_price)
+                self.trading_pnl_total += pnl
+                #print("market order sell at ", trade_price, ", trading pnl ", pnl)
             else:
                 # limit order
                 if now_trading_price_max > ask_price:
                     # all deal
                     trade_price, trade_volume = ask_price, ask_volume
-                    # print("limit order sell at", trade_price)
+
+                    pnl = trade_volume * (t_1_mid_price - trade_price)
+                    self.trading_pnl_total += pnl
+                    #print("limit order sell at", trade_price, ", trading pnl ", pnl, trade_volume)
 
                 # we assume that our quotes rest at the back of the queue
                 elif now_trading_price_max == ask_price:
@@ -493,11 +502,15 @@ class BaseEnv():
             if bid_price >= t_1_a1_price:
                 # market order
                 trade_price, trade_volume = t_1_a1_price, bid_volume
-                # print("market order buy at", trade_price)
+                pnl = trade_volume * (t_1_mid_price - trade_price)
+                self.trading_pnl_total += pnl
+                #print("market order buy at", trade_price, ", trading pnl ", pnl)
             else:
                 if now_trading_price_min < bid_price:
                     trade_price, trade_volume = bid_price, bid_volume
-                    # print("limit order buy at", trade_price)
+                    pnl = trade_volume * (t_1_mid_price - trade_price)
+                    self.trading_pnl_total += pnl
+                    #print("limit order buy at", trade_price, ", trading pnl ", pnl)
 
                 # we assume that our quotes rest at the back of the queue
                 elif now_trading_price_min == bid_price:
@@ -516,11 +529,11 @@ class BaseEnv():
         # Market order
         if self.inventory < 0:
             # Buy
-            trade_price, trade_volume = t_1_a1_price, -self.inventory
+            trade_price, trade_volume = t_1_b1_price, -self.inventory
             self.volume += trade_volume
         elif self.inventory > 0:
             # Sell
-            trade_price, trade_volume = t_1_b1_price, -self.inventory
+            trade_price, trade_volume = t_1_a1_price, -self.inventory
         else:
             trade_price, trade_volume = 0, 0
 
@@ -566,6 +579,7 @@ class BaseEnv():
         self.episode_avg_abs_position = self.logger.inventory.abs().mean()
         self.episode_profit_ratio = self.value/(self.volume+1e-7)
         self.pnl = self.value - self.initial_value
+        self.holding_pnl_total = self.pnl - self.trading_pnl_total
         self.nd_pnl = self.pnl/self.episode_avg_spread
         self.pnl_map = self.pnl/(self.episode_avg_abs_position+1e-7)
 
@@ -574,8 +588,8 @@ class BaseEnv():
                 "PnL:", self.pnl,
                 "Holding PnL", self.holding_pnl_total,
                 "Trading PnL", self.trading_pnl_total,
-                "ND-PnL:", self.nd_pnl,
-                "PnL-MAP:", self.pnl_map,
+                "ND-PnL(pnl/spread):", self.nd_pnl,
+                "PnL-MAP(pnl/pos):", self.pnl_map,
                 "Trading volume:", self.volume,
                 "Profit ratio:", self.episode_profit_ratio,
                 "Averaged position:",self.episode_avg_position,
@@ -640,24 +654,24 @@ class EnvFeature(BaseEnv):
         return [rv_300s, rv_600s, rv_1800s, rsi_300s, rsi_600s, rsi_1800s]
 
     def _get_order_strength_index(self,t):
-        #data_10s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=10))]
-        #data_60s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=60))]
-        #data_300s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=300))]
+        data_10s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=10))]
+        data_60s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=60))]
+        data_300s = self.msg[(self.msg.index<=self.episode_state.index[t])&(self.msg.index>=self.episode_state.index[t]-timedelta(seconds=300))]
 
-        #svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s = getOrderStrengthIndex(data_10s)
-        #svi_60s, sni_60s, lvi_60s, lni_60s, wvi_60s, wni_60s = getOrderStrengthIndex(data_60s)
-        #svi_300s, sni_300s, lvi_300s, lni_300s, wvi_300s, wni_300s = getOrderStrengthIndex(data_300s)
+        svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s = getOrderStrengthIndex(data_10s)
+        svi_60s, sni_60s, lvi_60s, lni_60s, wvi_60s, wni_60s = getOrderStrengthIndex(data_60s)
+        svi_300s, sni_300s, lvi_300s, lni_300s, wvi_300s, wni_300s = getOrderStrengthIndex(data_300s)
         return [0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0,
                 ]
 
-        #return [
-        #    svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s,
-        #    svi_60s, sni_60s, lvi_60s, lni_60s, wvi_60s, wni_60s,
-        #    svi_300s, sni_300s, lvi_300s, lni_300s, wvi_300s, wni_300s
-        #]
-
+#        return [
+#            svi_10s, sni_10s, lvi_10s, lni_10s, wvi_10s, wni_10s,
+#            svi_60s, sni_60s, lvi_60s, lni_60s, wvi_60s, wni_60s,
+#            svi_300s, sni_300s, lvi_300s, lni_300s, wvi_300s, wni_300s
+#        ]
+#
 
 
 #env_continuous
@@ -674,7 +688,7 @@ class EnvContinuous(EnvFeature):
             self,
             code='600519',
             day='20191101',
-            latency=1,
+            latency=0,
             T=50,
             # ablation states
             wo_lob_state=False,
@@ -712,7 +726,7 @@ class EnvContinuous(EnvFeature):
         self.load_orderbook(code=code, day=day)
         self.load_price(code=code, day=day)
         self.load_trade(code=code, day=day)
-        #self.load_msg(code=code, day=day)
+        self.load_msg(code=code, day=day)
 
     def init_states(self):
         self.__states_space__ = dict()
@@ -857,7 +871,7 @@ class EnvDiscrete(EnvFeature):
             code='000001',
             day='20191101',
             data_norm=True,
-            latency=1,
+            latency=0,
             T=50,
             # ablation states
             wo_lob_state=False,
@@ -894,7 +908,7 @@ class EnvDiscrete(EnvFeature):
         self.load_orderbook(code=code, day=day)
         self.load_price(code=code, day=day)
         self.load_trade(code=code, day=day)
-        #self.load_msg(code=code, day=day)
+        self.load_msg(code=code, day=day)
 
     def init_states(self):
         self.__states_space__ = dict()
@@ -1259,12 +1273,13 @@ class TrainConfig:
     # Experiment
     code: str = '600519'
     device: str = "cpu"
-    latency: int = 1
+    latency: int = 0
     time_window: int = 50
-    log: int = 3
+    log: int = 1
     exp_name: str = ''
     # Agent
     agent_type: str = 'ppo' # ppo/dueling dqn
+    #agent_type: str = 'dueling_dqn'
     learning_rate: int = 1e-4
     horizon: int = 1
     env_type: str = 'continuous' # continuous/discrete
@@ -1436,7 +1451,7 @@ def save_agent(agent, config):
     # save agent network
     agent.model.policy.network.keras_model.save(keras_model_dir)
     # Save agent
-    agent.save(config['agent_save_dir'], filename=agent, format='numpy')
+    agent.save(config['agent_save_dir'], filename=None, format='numpy')
 
 #@pyrallis.wrap()
 def main(config: TrainConfig):
@@ -1454,13 +1469,29 @@ def main(config: TrainConfig):
     test_result = pd.DataFrame(columns=['PnL', 'ND-PnL', 'average_position', 'profit_ratio', 'volume'])
     test(agent, test_result, config)
     daily_test_results = gather_test_results(test_result)
+    print(daily_test_results)
 
-keras_model_dir='model'
-#train_days=['20230320', '20230321']
-train_days=['20230320']
-test_days=['20230322']
-num_step_per_episode = 2000
-n_train_loop = 1
+if __name__ == '__main__':
+    resample = False
+    if resample == False:
+        order_file='order.csv'
+        trade_file='trade.csv'
+        price_file='price.csv'
+        msg_file='msg.csv'
+        order_book_file='order_book.csv'
+    else:
+        order_file='order_sample.csv'
+        trade_file='trade_sample.csv'
+        price_file='price_sample.csv'
+        msg_file='msg_sample.csv'
+        order_book_file='order_book_sample.csv'
 
-config = TrainConfig()
-main(config)
+    keras_model_dir='model'
+    train_days=['20230320', '20230321']
+    #train_days=['20230320']
+    test_days=['20230322']
+    num_step_per_episode = 2000
+    n_train_loop = 5
+    #
+    config = TrainConfig()
+    main(config)
