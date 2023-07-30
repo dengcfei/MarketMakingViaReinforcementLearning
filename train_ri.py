@@ -1288,7 +1288,7 @@ class TrainConfig:
     save: bool = True,
     agent_save_dir: str = 'agent'
     # Ablation
-    wo_pretrain: bool = True
+    wo_pretrain: bool = False
     wo_attnlob: bool = False
     wo_lob_state: bool = False
     wo_market_state: bool = False
@@ -1337,11 +1337,11 @@ def init_agent(environment, config):
         lob_model = get_lob_model(64,config['time_window'])
         lob_model.compute_output_shape = compute_output_shape
     else:
-        pretrain_model_dir = f'./ckpt/pretrain_model_' + config['code']
+        pretrain_model_dir = f'./model_tensorflow2'
         model = get_lob_model(64,config['time_window'])
         model.compute_output_shape = compute_output_shape
         model_pretrain = get_pretrain_model(model,config['time_window'])
-        checkpoint_filepath = pretrain_model_dir + '/weights'
+        checkpoint_filepath = pretrain_model_dir + '/china_model.weights.h5'
         model_pretrain.load_weights(checkpoint_filepath)
         lob_model = model_pretrain.layers[1]
 

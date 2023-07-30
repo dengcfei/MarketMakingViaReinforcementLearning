@@ -232,3 +232,21 @@ has_trade_index = np.where(episode_is_trade==1)[0]
 has_trade_index
 
 np.where(episode_is_trade==1)
+
+date_str = '20230331'
+process_one(date_str)
+
+build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
+
+
+
+import os
+os.chdir(r'c:\work\china-data\MarketMakingViaReinforcementLearning')
+from datetime import datetime, time
+import matplotlib.pyplot as plt
+import pandas as pd
+df = pd.read_csv(f'data/600519/{date_str}/order_book.csv')
+df['timestamp'] = pd.to_datetime(df['timestamp'])
+filtered_df = df[df['timestamp'].dt.time.between(time(9, 30), time(14, 57))]
+filtered_df.plot(x='timestamp', y=['bid_price_1', 'ask_price_1'])
+plt.show()
