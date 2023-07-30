@@ -83,12 +83,18 @@ class OrderBook:
         self.ask_orders = defaultdict(dict)  # Maps price levels to total ask quantity
         self.statistics = defaultdict(dict)  # Maps price levels to total ask quantity
 
+        self.open_price = 0
+        self.open_time = None
+        self.check_all_orders_at_open = False
+        self.exec_bid_at_open = []
+        self.exec_ask_at_open = []
+
     # Add a new order to the order book
     def add_order(self, order: Order):
         #if order.id == '9708393':
         #    print("found")
 
-
+        self.clean_up_at_open(order.trading_time)
 
         if order.side == 'B':
 
@@ -111,6 +117,8 @@ class OrderBook:
         else:
             stat = Statistics()
             self.statistics[order.trading_time] = stat
+
+        self.clean_up_at_open(order.trading_time)
 
         #if order.id == '9708393':
         #    print("found")
@@ -143,6 +151,40 @@ class OrderBook:
         else:
             print("unknown side", order)
 
+    def clean_up_at_open(self, event_time):
+        if self.open_time is not None and event_time > self.open_time:
+            if not self.check_all_orders_at_open:
+                self.check_all_orders_at_open = True
+                to_remove_bid = []
+                to_remove_ask = []
+
+                for bid_id in self.bid_orders.keys():
+                    if bid_id not in self.exec_bid_at_open:
+                        if bid_id == '91066':
+                            print("found")
+                        order = self.bid_orders[bid_id]
+                        if order.price >= self.open_price:
+                            self.bids[order.price] -= order.quantity
+                            self.bid_orders[bid_id].quantity -= order.quantity
+                            if self.bid_orders[bid_id].quantity <= 0:
+                                to_remove_bid.append(bid_id)
+                            if self.bids[order.price] <= 0:
+                                del self.bids[order.price]
+                for bid_id in to_remove_bid:
+                    del self.bid_orders[bid_id]
+                for ask_id in self.ask_orders.keys():
+                    if ask_id not in self.exec_ask_at_open:
+                        order = self.ask_orders[ask_id]
+                        if order.price <= self.open_price:
+                            self.asks[order.price] -= order.quantity
+                            self.ask_orders[ask_id].quantity -= order.quantity
+                            if self.ask_orders[ask_id].quantity <= 0:
+                                to_remove_ask.append(ask_id)
+                            if self.asks[order.price] <= 0:
+                                del self.asks[order.price]
+                for ask_id in to_remove_ask:
+                    del self.ask_orders[ask_id]
+
     # Execute a trade in the order book
     def execute_trade(self, trade: Trade):
         #if trade.ask_id == '9708393' or trade.bid_id == '9708393':
@@ -153,6 +195,8 @@ class OrderBook:
         else:
             stat = Statistics()
             self.statistics[trade.trading_time] = stat
+
+        self.clean_up_at_open(trade.trading_time)
 
         if trade.sb_mark == 'B':
             if trade.ask_id in self.ask_orders.keys():
@@ -168,6 +212,7 @@ class OrderBook:
                 if self.asks[trade.price] <= 0:
                     del self.asks[trade.price]
                     # del self.ask_counts[trade.price]
+
             else:
                 print("unknown ask order id for trade ", trade.ask_id, trade)
                 # even though cannot find order, still update quantity
@@ -233,6 +278,10 @@ class OrderBook:
             else:
                 pass #print("mkt ask order id for trade ", trade.ask_id, trade)
         elif trade.sb_mark == 'N':
+            self.open_price = trade.price
+            self.open_time = trade.trading_time
+            self.exec_bid_at_open.append(trade.bid_id)
+            self.exec_ask_at_open.append(trade.ask_id)
             if trade.bid_id in self.bid_orders.keys():
                 order = self.bid_orders[trade.bid_id]
                 if order.price >= trade.price:
@@ -254,6 +303,7 @@ class OrderBook:
                     if self.asks[order.price] <= 0:
                         del self.asks[order.price]
                     # del self.ask_counts[trade.price]
+
 
 
     # Get the top bid and ask prices and quantities
@@ -352,9 +402,19 @@ def build_order_book_snapshot(order_csv, trade_csv, output_csv, msg_csv):
             writer.writerow(row)
 
 
-date_str='20230320'
-build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
-date_str='20230321'
-build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
-date_str='20230322'
-build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
+# date_str='20230320'
+# build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
+# date_str='20230321'
+# build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
+# date_str='20230322'
+# build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
+
+#date_str='20230329'
+#build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
+
+
+for date_str in ['20230323', '20230324', '20230327', '20230328', '20230329', '20230330', '20230331']:
+   print("process ", date_str)
+   build_order_book_snapshot(f'data/600519/{date_str}/order.csv', f'data/600519/{date_str}/trade.csv', f'data/600519/{date_str}/order_book.csv', f'data/600519/{date_str}/msg.csv')
+
+
