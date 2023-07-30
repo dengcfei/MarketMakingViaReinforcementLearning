@@ -239,8 +239,8 @@ class BaseEnv():
         #self.orderbook = self.orderbook[(f'{self.day} 09:30:00'<self.orderbook.timestamp)&(self.orderbook.timestamp<f'{self.day} 14:57:00')]
         self.orderbook = self.orderbook.set_index('timestamp')
         self.orderbook_length = len(self.orderbook)
-        #print('load lob done!', code, day)
-        #print('loaded order book', len(self.orderbook))
+        print('load lob done!', code, day)
+        print('loaded order book', len(self.orderbook))
 
     def load_orderqueue(self, code, day):
         pass
@@ -254,11 +254,11 @@ class BaseEnv():
         self.price = self.price.set_index('timestamp')
         #print("loaded price", len(self.price))
         #self.price = self.price.loc[self.orderbook.index]
-        #print("loaded price", len(self.price))
+        print("loaded price", len(self.price))
 
     def load_msg(self, code, day):
         self.msg = pd.read_csv(self.data_dir + f'/{code}/{day}/{msg_file}')
-        #print('loaded msg', len(self.msg))
+        print('loaded msg', len(self.msg))
         self.msg.timestamp = pd.to_datetime(self.msg.timestamp)
         self.msg = self.msg.set_index('timestamp')
         #self.msg = self.msg.loc[self.orderbook.index]
@@ -294,7 +294,7 @@ class BaseEnv():
         #print("all trading time ", set(self.trade.TradingTime))
         self.is_trade.loc[set(self.trade.TradingTime)] = 1
         #print("length of is_trade ", len(self.is_trade))
-        #print(self.is_trade.value_counts())
+        print(self.is_trade.value_counts())
 
     '''
         Common function
@@ -321,7 +321,7 @@ class BaseEnv():
         has_trade_index = np.where(episode_is_trade==1)[0]
         #ignore first T=50
         has_trade_index = has_trade_index[has_trade_index>self.T]
-        #print("has_trade_index ", len(has_trade_index))
+        print("has_trade_index ", len(has_trade_index))
         #print("has_trade_index ", has_trade_index)
         self.index_iterator = iter(has_trade_index)
 
@@ -1282,13 +1282,14 @@ class TrainConfig:
     #agent_type: str = 'dueling_dqn'
     learning_rate: int = 1e-4
     horizon: int = 1
-    env_type: str = 'continuous' # continuous/discrete
+    #env_type: str = 'continuous' # continuous/discrete
+    env_type: str = 'discrete' # continuous/discrete
     load: bool = False
     agent_load_dir: str = 'agent'
     save: bool = True,
     agent_save_dir: str = 'agent'
     # Ablation
-    wo_pretrain: bool = True
+    wo_pretrain: bool = False
     wo_attnlob: bool = False
     wo_lob_state: bool = False
     wo_market_state: bool = False
@@ -1337,13 +1338,15 @@ def init_agent(environment, config):
         lob_model = get_lob_model(64,config['time_window'])
         lob_model.compute_output_shape = compute_output_shape
     else:
-        pretrain_model_dir = f'./ckpt/pretrain_model_' + config['code']
+        pretrain_model_dir = f'./model_tensorflow2/'
         model = get_lob_model(64,config['time_window'])
         model.compute_output_shape = compute_output_shape
         model_pretrain = get_pretrain_model(model,config['time_window'])
-        checkpoint_filepath = pretrain_model_dir + '/weights'
+        #checkpoint_filepath = pretrain_model_dir + '/china_model.weights.h5'
+        checkpoint_filepath = pretrain_model_dir + '/china_model.weights.all.h5'
         model_pretrain.load_weights(checkpoint_filepath)
         lob_model = model_pretrain.layers[1]
+        print("loaded pretrain model from ", checkpoint_filepath)
 
     if config['wo_attnlob']:
         print("Ablation: attnlob")
@@ -1361,7 +1364,7 @@ def init_agent(environment, config):
         model = keras.models.load_model(keras_model_dir)
         model.layers[1].compute_output_shape = compute_output_shape
         agent = get_agent(model, environment=environment, max_episode_timesteps=1000, device=config['device'], **kwargs)
-        agent.restore(config['agent_load_dir'], filename='cppo', format='numpy')
+        agent.restore(config['agent_load_dir'], filename='cppo', format='checkpoint')
 
     return agent
 
@@ -1415,11 +1418,13 @@ def test_a_day(environment, agent, test_result):
 
 def train(agent, train_result, config):
     for day in train_days:
+        print("train ", day)
         environment = init_env(day, config)
         train_a_day(environment, agent, train_result)
 
 def test(agent, test_result, config):
     for day in test_days:
+        print("test", day)
         environment = init_env(day, config)
         test_a_day(environment, agent, test_result)
 
@@ -1451,7 +1456,7 @@ def save_agent(agent, config):
     # save agent network
     agent.model.policy.network.keras_model.save(keras_model_dir)
     # Save agent
-    agent.save(config['agent_save_dir'], filename=None, format='numpy')
+    agent.save(config['agent_save_dir'], filename=None, format='checkpoint')
 
 #@pyrallis.wrap()
 def main(config: TrainConfig):
@@ -1461,11 +1466,13 @@ def main(config: TrainConfig):
     agent = init_agent(environment, config)
 
     train_result = pd.DataFrame(columns=['PnL', 'ND-PnL', 'average_position', 'profit_ratio', 'volume'])
-    for _ in range(n_train_loop):
+    for loop_i in range(n_train_loop):
+        print("loop ", loop_i)
         train(agent, train_result, config)
         if config['save']:
             save_agent(agent, config)
 
+    print(train_result)
     test_result = pd.DataFrame(columns=['PnL', 'ND-PnL', 'average_position', 'profit_ratio', 'volume'])
     test(agent, test_result, config)
     daily_test_results = gather_test_results(test_result)
@@ -1487,9 +1494,19 @@ if __name__ == '__main__':
         order_book_file='order_book_sample.csv'
 
     keras_model_dir='model'
-    train_days=['20230320', '20230321']
+    train_days=[
+    #        '20230320',
+    #        '20230321',
+#            '20230322',
+            '20230323',
+            '20230324',
+            '20230327',
+            '20230328',
+            '20230329',
+            '20230330',
+            ]
     #train_days=['20230320']
-    test_days=['20230322']
+    test_days=['20230331']
     num_step_per_episode = 2000
     n_train_loop = 5
     #
